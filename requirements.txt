@@ -1,0 +1,2 @@
+# Vercel이 설치할 Python 라이브러리 목록입니다.
+Flask==3.0.3
