@@ -1,51 +1,87 @@
 # api/index.py
-# Vercel에서 Python(Flask)을 실행하는 메인 엔진 파일입니다.
+# 최종 기능 탑재 및 JSON 응답 인코딩 강제 지정 버전
 
 import os
+import json
+import feedparser
 from flask import Flask, request, jsonify
+from google import genai
+from google.genai.errors import APIError
 
 # Flask 앱 초기화
 app = Flask(__name__)
 
-# Vercel 환경 변수에서 우리가 설정할 '비밀 키'를 읽어옵니다.
-# 이 키는 워드프레스와 백엔드 엔진만 아는 비밀번호입니다.
-VERCEL_API_KEY = os.environ.get('VERCEL_API_KEY')
+# 환경 변수 로드
+RIBBONLINE_SECRET_KEY = os.environ.get('RIBBONLINE_SECRET_KEY')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+# (네이버 키는 현재 분석에 사용하지 않으므로 로드 생략)
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def catch_all(path):
-    # --- 1. 보안 인증: 워드프레스에서 보낸 키가 맞는지 확인 ---
+    
+    # 1. 보안 인증: 키 확인
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({"error": "인증 헤더가 없습니다."}), 401
 
     client_api_key = auth_header.split(' ')[1]
     
-    if not VERCEL_API_KEY or client_api_key != VERCEL_API_KEY:
+    if not RIBBONLINE_SECRET_KEY or client_api_key != RIBBONLINE_SECRET_KEY:
         return jsonify({"error": "API 키가 유효하지 않습니다."}), 403
 
-    # --- 2. 라우팅: 'api/collect' 주소로 요청이 왔는지 확인 ---
-    # 실제 주소는 https://...vercel.app/api/collect 가 됩니다.
+    # 2. 라우팅: 'collect' 주소 확인
     if path == 'collect':
         try:
-            # --- 3. AI 분석 실행 (지금은 테스트 단계) ---
-            # TODO: 여기에 RSS 피드 수집 및 AI 분석 로직 추가
+            # 3. Gemini 클라이언트 초기화 및 API 호출
+            if not GEMINI_API_KEY:
+                return jsonify({"error": "Gemini API 키가 설정되지 않았습니다."}), 500
+
+            client = genai.Client(api_key=GEMINI_API_KEY)
             
-            # (예시) AI API 키가 잘 로드되었는지 테스트
-            ai_key_status = "로드됨" if os.environ.get('GEMINI_API_KEY') else "로드 안됨"
+            # 4. RSS 피드 수집 및 가공 (네이버 IT 뉴스 최신 3개)
+            rss_url = "https://rss.naver.com/feed/section/105.xml"
+            feed = feedparser.parse(rss_url)
+            news_summaries = []
+            for entry in feed.entries[:3]:
+                news_summaries.append(f"제목: {entry.title}\n요약: {entry.summary}")
+            news_text = "\n---\n".join(news_summaries)
+            
+            # 5. Gemini 프롬프트 정의 및 요청
+            system_prompt = "당신은 공익 임팩트 지수 분석가입니다. 다음 JSON 형식에 맞추어 점수와 요약 설명을 제공하세요. 총점은 50점 만점입니다. 점수는 순수한 정수만 포함해야 합니다."
+            prompt = (
+                f"분석할 뉴스:\n---\n{news_text}\n---\n\n"
+                "다음 JSON 형식에 맞추어 평가를 완료하세요: {\"total_score\": 0, \"category_scores\": {\"환경\": 0, \"사회\": 0, \"건강\": 0}, \"summary\": \"요약 내용\"}"
+            )
+            
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+                config={'system_instruction': system_prompt, 'response_mime_type': 'application/json'}
+            )
 
-            # 성공 응답 반환
-            return jsonify({
-                "message": "리본라인 엔진 호출 성공!",
-                "status": "ok",
-                "requested_path": path,
-                "ai_key_test (Gemini)": ai_key_status
-            }), 200
+            # 6. 응답 파싱 및 결과 구조화
+            try:
+                analysis_result = json.loads(response.text)
+                
+                final_response = {
+                    "status": "success",
+                    "public_index": analysis_result.get('total_score', '점수 없음'),
+                    "category_scores": analysis_result.get('category_scores', {}),
+                    "briefing_summary": analysis_result.get('summary', '브리핑 요약 없음'),
+                    "ai_key_test_gemini": "로드됨" # 테스트용
+                }
+                
+                # JSON 응답을 명시적으로 UTF-8로 지정하여 워드프레스의 인코딩 오류 방지
+                return jsonify(final_response), 200, {'Content-Type': 'application/json; charset=utf-8'}
 
+            except json.JSONDecodeError:
+                return jsonify({"error": "AI 응답 형식이 잘못되었습니다.", "raw_output": response.text}), 500
+            
+        except APIError as e:
+            return jsonify({"error": "Gemini API 호출 중 오류 발생", "details": str(e)}), 500
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"error": "서버 내부 오류 발생: " + str(e)}), 500
 
-    # 정의되지 않은 다른 모든 경로에 대한 404 응답
+    # 404: 정의되지 않은 API 경로
     return jsonify({"error": "정의되지 않은 API 경로입니다."}), 404
-
-# Vercel은 이 'app' 변수를 찾아 실행합니다.
