@@ -1,5 +1,5 @@
 # api/index.py
-# 최종 기능 탑재 및 JSON 응답 인코딩 강제 지정 버전
+# 최종 기능 탑재, CORS 허용 및 JSON 응답 인코딩 강제 지정 버전 (Ver 2.5)
 
 import os
 import json
@@ -11,10 +11,18 @@ from google.genai.errors import APIError
 # Flask 앱 초기화
 app = Flask(__name__)
 
+# --- 핵심 수정: CORS (교차 출처) 문제 해결 ---
+# 워드프레스(다른 출처)에서 Vercel 엔진에 접근할 수 있도록 허용하는 코드입니다.
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*') # 모든 주소에서 접근 허용
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 # 환경 변수 로드
 RIBBONLINE_SECRET_KEY = os.environ.get('RIBBONLINE_SECRET_KEY')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-# (네이버 키는 현재 분석에 사용하지 않으므로 로드 생략)
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
@@ -69,7 +77,7 @@ def catch_all(path):
                     "public_index": analysis_result.get('total_score', '점수 없음'),
                     "category_scores": analysis_result.get('category_scores', {}),
                     "briefing_summary": analysis_result.get('summary', '브리핑 요약 없음'),
-                    "ai_key_test_gemini": "로드됨" # 테스트용
+                    "ai_key_test_gemini": "로드됨"
                 }
                 
                 # JSON 응답을 명시적으로 UTF-8로 지정하여 워드프레스의 인코딩 오류 방지
