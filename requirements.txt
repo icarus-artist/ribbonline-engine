@@ -1,4 +1,5 @@
-# Vercel이 설치할 Python 라이브러리 목록 (버전 번호 제거)
+# Vercel이 설치할 Python 라이브러리 목록
 Flask
 google-genai
 feedparser
+requests
