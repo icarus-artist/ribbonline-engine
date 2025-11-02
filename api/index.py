@@ -1,5 +1,5 @@
 # api/index.py
-# 최종 기능 탑재, CORS 허용 및 JSON 응답 인코딩 강제 지정 버전 (Ver 2.5)
+# 최종 기능 탑재, CORS 허용 및 URL 쿼리 파라미터로 키 수신 버전 (Ver 2.6)
 
 import os
 import json
@@ -11,11 +11,10 @@ from google.genai.errors import APIError
 # Flask 앱 초기화
 app = Flask(__name__)
 
-# --- 핵심 수정: CORS (교차 출처) 문제 해결 ---
-# 워드프레스(다른 출처)에서 Vercel 엔진에 접근할 수 있도록 허용하는 코드입니다.
+# CORS (교차 출처) 문제 해결: 모든 출처에서의 접근을 허용합니다.
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*') # 모든 주소에서 접근 허용
+    response.headers.add('Access-Control-Allow-Origin', '*') 
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
@@ -28,16 +27,23 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def catch_all(path):
     
-    # 1. 보안 인증: 키 확인
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return jsonify({"error": "인증 헤더가 없습니다."}), 401
-
-    client_api_key = auth_header.split(' ')[1]
+    # --- 핵심 수정: 1. 헤더 대신 쿼리 파라미터에서 키 추출 ---
+    client_api_key = request.args.get('api_key') # URL의 ?api_key=... 에서 키를 읽어옵니다.
     
-    if not RIBBONLINE_SECRET_KEY or client_api_key != RIBBONLINE_SECRET_KEY:
-        return jsonify({"error": "API 키가 유효하지 않습니다."}), 403
+    if not client_api_key:
+        # 쿼리 파라미터에도 없다면 헤더에서도 시도 (안전 장치)
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            client_api_key = auth_header.split(' ')[1]
 
+    if not client_api_key:
+        return jsonify({"error": "인증 정보(API Key)가 요청에 포함되지 않았습니다."}), 401
+
+    if client_api_key != RIBBONLINE_SECRET_KEY:
+        # 403: API 키 불일치
+        return jsonify({"error": "API 키가 유효하지 않습니다."}), 403
+    # --- 핵심 수정 끝 ---
+    
     # 2. 라우팅: 'collect' 주소 확인
     if path == 'collect':
         try:
