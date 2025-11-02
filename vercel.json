@@ -14,8 +14,8 @@
   ],
   "functions": {
     "api/index.py": {
-      "maxDuration": 60,  // 실행 시간 최대 60초로 증가 (기본값 10초)
-      "memory": 1024       // 메모리 1GB로 증가 (Hobby 플랜 최대치)
+      "maxDuration": 60,
+      "memory": 1024
     }
   }
 }
