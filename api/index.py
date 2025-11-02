@@ -109,11 +109,6 @@ def run_ai_analysis():
 # --- 🚀 1. 백그라운드 작업 API (Vercel Cron이 1시간마다 호출) ---
 @app.route('/api/cron', methods=['GET'])
 def cron_job():
-    # (보안: Vercel 내부 Cron 요청이 맞는지 확인 - 선택 사항이지만 권장)
-    # auth_header = request.headers.get('Authorization')
-    # if auth_header != f"Bearer {os.environ.get('CRON_SECRET')}":
-    #     return jsonify({"error": "Unauthorized cron job"}), 401
-
     try:
         # AI 분석 실행 (60초 소요될 수 있음)
         analysis_data = run_ai_analysis()
@@ -169,7 +164,7 @@ def catch_all(path):
             return jsonify(latest_data), 200, {'Content-Type': 'application/json; charset=utf-8'}
 
         except Exception as e:
-            return jsonify({"error": "DB(KV) 조회 중 오류 발생: " + str(e)}), 500
+            return jsonify({"error": "DB(KV) 조회 중 오류 발생: " + str(e)}"}), 500
 
     # 404: 정의되지 않은 API 경로
     return jsonify({"error": f"정의되지 않은 API 경로입니다. Vercel이 수신한 경로(Path): '{path}'"}), 404
