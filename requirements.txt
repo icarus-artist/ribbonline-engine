@@ -1,4 +1,4 @@
-# Vercel이 설치할 Python 라이브러리 목록입니다.
-Flask==3.0.3
-google-genai==0.7.1  # Gemini API 호출 라이브러리
-feedparser==6.0.10   # RSS 피드를 쉽게 파싱하는 라이브러리
+# Vercel이 설치할 Python 라이브러리 목록 (버전 번호 제거)
+Flask
+google-genai
+feedparser
