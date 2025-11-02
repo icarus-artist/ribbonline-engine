@@ -1,6 +1,5 @@
 # api/index.py
-# 최종 기능 탑재: Cron(백그라운드) + KV(DB)를 사용한 비동기 아키텍처 (Ver 4.0)
-# --- Vercel 강제 재배포를 위한 주석 (이 줄을 추가하세요) ---
+# 최종 기능 탑재: Flask 라우팅 순서 오류 수정 (Ver 4.1)
 
 import os
 import json
@@ -27,7 +26,6 @@ def after_request(response):
 RIBBONLINE_SECRET_KEY = os.environ.get('RIBBONLINE_SECRET_KEY')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 WORDPRESS_SITE_URL = os.environ.get('WORDPRESS_SITE_URL')
-# (DB 관련 키 4개는 vercel-kv 라이브러리가 자동으로 읽어옵니다)
 
 # --- 헬퍼 함수: RSS 피드 1개를 비동기(병렬)로 가져오는 함수 ---
 def fetch_single_feed(url):
@@ -108,6 +106,7 @@ def run_ai_analysis():
 
 
 # --- 🚀 1. 백그라운드 작업 API (Vercel Cron이 1시간마다 호출) ---
+# --- (핵심 수정: 이 경로를 catch_all보다 '먼저' 정의해야 합니다) ---
 @app.route('/api/cron', methods=['GET'])
 def cron_job():
     try:
@@ -145,11 +144,9 @@ def catch_all(path):
     if cleaned_path == 'collect' or cleaned_path == 'api/collect':
         try:
             # --- 3. 🚀 DB(Vercel KV)에서 '최신 분석 결과' 읽어오기 ---
-            # (AI 분석을 직접 하지 않고, 저장된 결과만 1초 만에 가져옴)
             latest_data_json = kv.get("latest_analysis")
             
             if not latest_data_json:
-                # 아직 Cron Job이 실행되기 전 (데이터가 없음)
                 return jsonify({
                     "status": "pending",
                     "briefing_summary": "현재 데이터를 수집/분석 중입니다. 잠시 후 새로고침 해주세요."
@@ -157,11 +154,9 @@ def catch_all(path):
             
             latest_data = json.loads(latest_data_json)
             
-            # DB에 저장된 결과가 오류 메시지일 경우
             if "error" in latest_data:
                  return jsonify({"error": "백그라운드 분석 중 오류 발생", "details": latest_data}), 500
 
-            # DB에서 가져온 최종 결과를 워드프레스로 반환
             return jsonify(latest_data), 200, {'Content-Type': 'application/json; charset=utf-8'}
 
         except Exception as e:
