@@ -1,5 +1,5 @@
 # api/index.py
-# 최종 기능 탑재, 404 오류 해결을 위한 경로 인식 강화 버전 (Ver 2.7)
+# 최종 기능 탑재, 404 오류 해결을 위한 경로 인식 강화 버전 (Ver 2.8)
 
 import os
 import json
@@ -42,10 +42,11 @@ def catch_all(path):
         return jsonify({"error": "API 키가 유효하지 않습니다."}), 403
     
     # --- 핵심 수정: 2. 라우팅 경로 인식을 유연하게 변경 ---
-    # 경로 앞뒤의 공백이나 '/' 문자를 모두 제거하고 'collect'와 비교
+    # 경로 앞뒤의 공백이나 '/' 문자를 모두 제거
     cleaned_path = path.strip().strip('/')
     
-    if cleaned_path == 'collect':
+    # Vercel이 'collect'를 보내든 'api/collect'를 보내든 모두 허용
+    if cleaned_path == 'collect' or cleaned_path == 'api/collect':
         # --- (이하 AI 분석 로직은 동일) ---
         try:
             if not GEMINI_API_KEY:
