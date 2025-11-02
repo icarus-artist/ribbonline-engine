@@ -1,5 +1,6 @@
 # api/index.py
 # 최종 기능 탑재: Flask 라우팅 순서 오류 수정 (Ver 4.1)
+# --- Vercel 강제 재배포를 위한 주석 (이 줄을 추가하세요) ---
 
 import os
 import json
