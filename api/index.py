@@ -1,5 +1,6 @@
 # api/index.py
 # 최종 기능 탑재: Cron(백그라운드) + KV(DB)를 사용한 비동기 아키텍처 (Ver 4.0)
+# --- Vercel 강제 재배포를 위한 주석 (이 줄을 추가하세요) ---
 
 import os
 import json
