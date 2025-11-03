@@ -1,11 +1,21 @@
 {
   "version": 2,
-  "functions": {
-    "api/*.js": { "runtime": "nodejs20.x" }
-  },
   "routes": [
-    { "src": "/api/impact", "dest": "/api/impact.js" },
-    { "src": "/api/echo",   "dest": "/api/echo.js"  },
-    { "src": "/api/health", "dest": "/api/health.js"}
+    {
+      "src": "/api/impact",
+      "dest": "/api/impact.js"
+    },
+    {
+      "src": "/api/echo",
+      "dest": "/api/echo.js"
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/health.js"
+    },
+    {
+      "src": "/api/hello",
+      "dest": "/api/hello.js"
+    }
   ]
 }
